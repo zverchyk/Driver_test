@@ -81,7 +81,7 @@ def quiz(number):
       
     question = questions[number]
 
-    return render_template('index.html', question=question)
+    return render_template('index.html', question=question, number = number)
 @app.route('/next_question')
 def next_question():
     result = db.session.execute(db.select(Question))
@@ -93,7 +93,7 @@ def next_question():
     if len(previous_questions) <= 0 or current_question_index +1 == len(previous_questions):
         number = get_random(all = len(questions) - 1, last = previous_questions)
         previous_questions.append(number)
-
+        current_question_index+=1 
     else:
         number = previous_questions[current_question_index+1]
         current_question_index+=1
@@ -103,15 +103,15 @@ def next_question():
     print('start index: ', current_question_index)
     return redirect(url_for('quiz', number = number))
 
-@app.route('/previous_question')
-def previous_question():
+@app.route('/previous_question/<int:number>')
+def previous_question(number):  
     current_question_index = session.get('current_question_index', 0)
     previous_questions = session.get('previous_questions', [])
     if current_question_index >0 and len(previous_questions) >1:
         current_question_index -=1
-        
-    number = previous_question[current_question_index]
-    
+        number = previous_questions[current_question_index] 
+    else: 
+        number = number
     print('previous: ', previous_questions)
     print('previous index: ', current_question_index)
     
@@ -144,7 +144,7 @@ def edit_question(question_id):
         question.image = edit_q.image.data
         db.session.commit()
         
-        return redirect(url_for('quiz'))
+        return redirect(url_for('quiz', number = question_id))
     
     return render_template('edit.html', form=edit_q, id = question_id)
 
