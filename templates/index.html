@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drive Test</title>
+    <link
+    href="{{ url_for('static', filename='css/styles.css') }}"
+    rel="stylesheet"
+  />
+  {{ bootstrap.load_css() }}
+</head>
+<body>
+    <div class="container mt-sm-5 my-1">
+        <div class="question ml-sm-5 pl-sm-5 pt-2">
+            <div class="py-2 h5"><b>Q. {{question.question}}</b></div>
+            {%if question.image != 'None' %}
+            <img src="/static/img/{{question.id}}.png" alt="not found">
+            {%endif%}
+            <div class="ml-md-3 ml-sm-3 pl-md-5 pt-sm-0 pt-3" id="options">
+                <form action="">
+                <label class="options">{{question.answer_1}}
+                    <input type="radio" name="radio">
+                    <span class="checkmark"></span>
+                </label>
+                <label class="options">{{question.answer_2}}
+                    <input type="radio" name="radio">
+                    <span class="checkmark"></span>
+                </label>
+                <label class="options">{{question.answer_3}}
+                    <input type="radio" name="radio">
+                    <span class="checkmark"></span>
+                </label>
+                <label class="options">{{question.answer_4}}
+                    <input type="radio" name="radio">
+                    <span class="checkmark"></span>
+                </label>
+                <button type="submit">Submit</button>
+            </form>
+            </div>
+        </div>
+        <div class="d-flex align-items-center pt-3">
+            <div id="prev">
+                <a class="btn btn-primary" href='{{url_for("previous_question")}}'>Previous</a>
+            </div>
+            <div class="ml-auto mr-sm-5">
+                <a class="btn btn-success" href='{{url_for("next_question")}}'>Next</a>
+            </div>
+            <div class="ml-auto mr-sm-5">
+                <a class="btn btn-warning" href='{{url_for("edit_question", question_id =question.id )}}'>Edit</a>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.bundle.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css"></script>
+</body>
+</html>

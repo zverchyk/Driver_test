@@ -1,0 +1,30 @@
+{% macro render_custom_form(form) %}
+    {% for field in form %}
+        <div class="mb-3" style="display: flex; align-items: center; margin: 20px; width: 100%">
+            <label for="{{ field.id }}" class="form-label" style='width:100%'>{{ field.label }}</label>
+            {% if field.type in ['StringField', 'PasswordField', 'TextAreaField'] %}
+                <input type="{{ field.type }}" class="form-control" style='width:100%' id="{{ field.id }}" name="{{ field.name }}" value="{{ field.data }}">
+
+            {% endif %}
+        </div>
+    {% endfor %}
+{% endmacro %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>edit</title>
+    {{ bootstrap.load_css() }}
+    {% from "bootstrap5/form.html" import render_form %}
+</head>
+<body>
+    <form method="post">
+        {{ render_form(form, novalidate=True) }}
+    </form>
+
+</form>
+</body>
+</html>
+
+
