@@ -5,7 +5,7 @@ from wtforms.validators import DataRequired, URL
 
 class QuestionForm(FlaskForm):
     csrf_token = HiddenField()
-    question = StringField('Question', validators=[validators.length(max=500)])
+    question = StringField('Question', validators=[validators.length(max=1000)])
     answer_1 = StringField('First answer', validators=[validators.length(max=500)])
     answer_2 = StringField('Second answer', validators=[validators.length(max=500)])
     answer_3 = StringField('Third answern', validators=[validators.length(max=500)])

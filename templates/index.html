@@ -4,35 +4,101 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Drive Test</title>
-    <link
-    href="{{ url_for('static', filename='css/styles.css') }}"
-    rel="stylesheet"
-  />
+    <link   href="{{ url_for('static', filename='css/styles.css') }}"
+    rel="stylesheet"/>
+    <script type="text/javascript">
+ 
+    var change_time = false;
+    var dataFromServer = JSON.parse('{{ data_json|safe }}');
+    var change_time = dataFromServer["update"]
+      
+        document.addEventListener('DOMContentLoaded', (event) => {
+            window.onload = function(){
+        document.getElementById("resetTimerButton").addEventListener("click", resetTimer);
+    } 
+
+    function resetTimer() {
+    // Remove the countDownDate from localStorage
+    endTime = new Date().getTime() + (25 * 60 * 1000); // 25 minutes from now
+    localStorage.setItem('endTime', endTime);
+
+    // Additional actions, like resetting the timer display, can be added here
+    // For example, resetting the timer to "00:00:00"
+    document.getElementById("timer").innerHTML = "in progress";
+}
+        // Check if an end time is already set in localStorage, else set it for 25 minutes from now
+        var endTime =localStorage.getItem('endTime')
+        if (change_time){
+            endTime = new Date().getTime() + (25 * 60 * 1000); // 25 minutes from now
+            localStorage.setItem('endTime', endTime);
+        }
+        console.log(endTime)
+        console.log(change_time)
+        if (!endTime) {
+            endTime = new Date().getTime() + (25 * 60 * 1000); // 25 minutes from now
+            localStorage.setItem('endTime', endTime);
+        }
+        // Update the countdown every 1 second
+        var x = setInterval(function() {
+
+            // Get current time
+            var now = new Date().getTime();
+
+            // Calculate the distance between now and the end time
+            var distance = endTime - now;
+
+            // Time calculations for minutes and seconds
+            var minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+            var seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+            // Display the result in the element with id="timer"
+            document.getElementById("timer").innerHTML = minutes + "m " + seconds + "s ";
+
+            // If the countdown is finished, display a message
+            if (distance < 0) {
+                clearInterval(x);
+                document.getElementById("timer").innerHTML = "TIME UP";
+                localStorage.removeItem('endTime'); // Remove the saved end time
+            }
+        }, 1000);
+    });
+
+
+    </script>
   {{ bootstrap.load_css() }}
 </head>
 <body>
     <div class="container mt-sm-5 my-1">
         <div class="question ml-sm-5 pl-sm-5 pt-2">
+            <div class="time_mistakes">
+            <p>Time Left: <span id="timer" name = 'timer'></span></p>
+            <button id="resetTimerButton">Reset Timer</button>
+            <div class="mistakes">
+                {%for dot in dot_list%}
+                <div class="{{dot}}"></div>
+                {%endfor%}
+            </div>
+        </div>
             <div class="py-2 h5"><b>Q. {{question.question}}</b></div>
             {%if question.image != 'None' %}
-            <img src="/static/img/{{question.id}}.png" alt="not found">
+            <img src="/static/img/{{question.image}}.png" alt="{{question.id}}">
             {%endif%}
             <div class="ml-md-3 ml-sm-3 pl-md-5 pt-sm-0 pt-3" id="options">
-                <form action="">
+                <form action="{{url_for('quiz', number= number)}}", method="POST">
                 <label class="options">{{question.answer_1}}
-                    <input type="radio" name="radio">
+                    <input type="radio" name="answer" value="0">
                     <span class="checkmark"></span>
                 </label>
                 <label class="options">{{question.answer_2}}
-                    <input type="radio" name="radio">
+                    <input type="radio" name="answer" value="1">
                     <span class="checkmark"></span>
                 </label>
                 <label class="options">{{question.answer_3}}
-                    <input type="radio" name="radio">
+                    <input type="radio" name="answer" value="2">
                     <span class="checkmark"></span>
                 </label>
                 <label class="options">{{question.answer_4}}
-                    <input type="radio" name="radio">
+                    <input type="radio" name="answer" value="3">
                     <span class="checkmark"></span>
                 </label>
                 <button type="submit">Submit</button>
@@ -51,6 +117,7 @@
             </div>
         </div>
     </div>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.bundle.min.js"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css"></script>

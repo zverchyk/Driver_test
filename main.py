@@ -1,4 +1,4 @@
-from flask import Flask, abort, render_template, redirect, url_for, flash, request, session
+from flask import Flask, abort, render_template, redirect,jsonify, url_for, flash, request, session
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import relationship, DeclarativeBase, Mapped, mapped_column
 from sqlalchemy import Integer, String, Text, distinct
@@ -8,6 +8,16 @@ from flask_bootstrap import Bootstrap5
 import json
 from form import QuestionForm, StartForm
 import random as r
+import threading
+from time import sleep
+
+#offset-aware datetime
+import pytz
+from datetime import datetime, timedelta
+
+#allowed time in minutes
+ALLOWED_TIME =  25
+# Function to decrement the timer value and update it
 
 app = Flask(__name__)
 #config paths
@@ -35,7 +45,7 @@ class Question(db.Model):
     correct = db.Column(String())
     image = db.Column(String())
 
-
+#uploads data to sql
 def upload_data():  
     with app.app_context():
         db.create_all()
@@ -69,7 +79,14 @@ def start():
     form = StartForm()
     print(form.validate_on_submit())  
     if request.method == "POST":
-        session.clear()
+        # session.clear()
+            # Start the timer thread
+        # timer_thread = threading.Thread(target=countdown, args= (result_queue))
+        # timer_thread.start()
+        session['start_time'] = datetime.now(pytz.UTC)
+        session['update_website_time'] = True
+        
+        
         return redirect(url_for('next_question'))
     return render_template('start.html', form= form)
     
@@ -77,11 +94,42 @@ def start():
 def quiz(number):  
     result = db.session.execute(db.select(Question))
     questions = result.scalars().all()
-
+    previous_questions = session.get('previous_questions', [])
+    update_website_time = session.get('update_website_time', False)
+    dot_list = session.get('dot_list', ["green_dot" for x in range(5)])
+    print("fjf", update_website_time)
+    if update_website_time:
+        data= {"update": True}
+        session['update_website_time'] = False
+    else:
+        data= {"update": False}
+    
+    print('ff', data)  
+    #timer settings 
+    allowed_duration = timedelta(minutes=ALLOWED_TIME)
+    start_time = session.get('start_time', None)
+    now = datetime.now(pytz.UTC)
+    if start_time and now - start_time > allowed_duration:
+        
+        return render_template('result.html', q= previous_questions)  
+    
+    print(start_time)
       
     question = questions[number]
+    if request.method == "POST":
+        selected_answer = str(request.form.get('answer'))
+        if selected_answer == question.correct:
+            print('it is correct answer', question.id)
+        else:
+            #search for first occurrence of value 'green_dot' and changes it to 'red_dot'
+            fisrt_occurrence = dot_list.index('green_dot')
+            dot_list[fisrt_occurrence] = 'red_dot'
+            session['dot_list'] = dot_list
+            print('you answer is written', question.id) 
+        
+        return redirect(url_for('next_question'))
 
-    return render_template('index.html', question=question, number = number)
+    return render_template('index.html', question=question, number = number, data_json=json.dumps(data), dot_list = dot_list)
 @app.route('/next_question')
 def next_question():
     result = db.session.execute(db.select(Question))
@@ -93,7 +141,8 @@ def next_question():
     if len(previous_questions) <= 0 or current_question_index +1 == len(previous_questions):
         number = get_random(all = len(questions) - 1, last = previous_questions)
         previous_questions.append(number)
-        current_question_index+=1 
+        if current_question_index != 0:
+            current_question_index+=1 
     else:
         number = previous_questions[current_question_index+1]
         current_question_index+=1
@@ -118,6 +167,11 @@ def previous_question(number):
     session['current_question_index'] = current_question_index
     session['previous_questions'] = previous_questions
     return redirect(url_for('quiz', number= number))
+
+@app.route('/update-time')
+def update_time():
+    time = {'change_time': True}
+    return jsonify(time)
 
 
 @app.route('/edit/<int:question_id>', methods =['GET', "POST"])
