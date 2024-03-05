@@ -17,15 +17,6 @@
         document.getElementById("resetTimerButton").addEventListener("click", resetTimer);
     } 
 
-    function resetTimer() {
-    // Remove the countDownDate from localStorage
-    endTime = new Date().getTime() + (25 * 60 * 1000); // 25 minutes from now
-    localStorage.setItem('endTime', endTime);
-
-    // Additional actions, like resetting the timer display, can be added here
-    // For example, resetting the timer to "00:00:00"
-    document.getElementById("timer").innerHTML = "in progress";
-}
         // Check if an end time is already set in localStorage, else set it for 25 minutes from now
         var endTime =localStorage.getItem('endTime')
         if (change_time){
@@ -72,7 +63,7 @@
         <div class="question ml-sm-5 pl-sm-5 pt-2">
             <div class="time_mistakes">
             <p>Time Left: <span id="timer" name = 'timer'></span></p>
-            <button id="resetTimerButton">Reset Timer</button>
+            <p>{{q_list}}/30</p>
             <div class="mistakes">
                 {%for dot in dot_list%}
                 <div class="{{dot}}"></div>

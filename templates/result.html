@@ -3,9 +3,53 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>Result</title>
+    <link href="//maxcdn.bootstrapcdn.com/bootstrap/4.1.1/css/bootstrap.min.css" rel="stylesheet" id="bootstrap-css">
+    <script src="//maxcdn.bootstrapcdn.com/bootstrap/4.1.1/js/bootstrap.min.js"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/result_styles.css') }}">
 </head>
 <body>
-    {{q }}
+    <div class="main">
+    <div class="card_block row">
+
+    <div class="sign_block col-4">
+    {%if success%}
+    
+    <div class="swal2-icon swal2-success swal2-animate-success-icon" style="display: flex;">
+        <div class="swal2-success-circular-line-left" style="background-color: rgb(255, 255, 255);"></div>
+          <span class="swal2-success-line-tip"></span>
+          <span class="swal2-success-line-long"></span>
+          <div class="swal2-success-ring"></div> 
+          <div class="swal2-success-fix" style="background-color: rgb(255, 255, 255);"></div>
+          <div class="swal2-success-circular-line-right" style="background-color: rgb(255, 255, 255);"></div> </div>
+         
+         
+
+    {%else%}
+    <div class="swal2-icon swal2-error swal2-animate-error-icon" style="display: flex;"><span class="swal2-x-mark"><span class="swal2-x-mark-line-left"></span><span class="swal2-x-mark-line-right"></span></span></div>
+    {%endif%}
+</div>
+    <div class="info_block col-8">
+        {%if success%}
+        <h1>Well done</h1>
+        {%else%}
+        <h1>Try one more time</h1>
+        {%endif%}
+        <ul>
+        <li><h1>You have spent: {{time.minutes}} min {{time.seconds}} sec</h1></li>
+        <li><h1>You have correctly answered for {{correct_answers}} out of {{q_list}}</h1></li>
+        {%if miskates!= 0%}
+        <li><h1>You have made {{mistakes}} mistakes</h1></li>
+        {%else%}
+        <li><h1>You didn't make any mistake</h1></li>
+        {%endif%}
+    </ul>
+    </div>
+</div>
+<div class="choice_block row">
+    <a href="{{url_for('start')}}" class="btn btn-success">Retry</a>
+</div>
+</div>
 </body>
 </html>

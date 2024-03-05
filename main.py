@@ -16,7 +16,7 @@ import pytz
 from datetime import datetime, timedelta
 
 #allowed time in minutes
-ALLOWED_TIME =  25
+ALLOWED_TIME =  1
 # Function to decrement the timer value and update it
 
 app = Flask(__name__)
@@ -97,23 +97,27 @@ def quiz(number):
     previous_questions = session.get('previous_questions', [])
     update_website_time = session.get('update_website_time', False)
     dot_list = session.get('dot_list', ["green_dot" for x in range(5)])
-    print("fjf", update_website_time)
     if update_website_time:
         data= {"update": True}
         session['update_website_time'] = False
     else:
         data= {"update": False}
     
-    print('ff', data)  
+     
     #timer settings 
     allowed_duration = timedelta(minutes=ALLOWED_TIME)
-    start_time = session.get('start_time', None)
+    start_time = session.get('start_time', None)  
     now = datetime.now(pytz.UTC)
-    if start_time and now - start_time > allowed_duration:
-        
-        return render_template('result.html', q= previous_questions)  
-    
-    print(start_time)
+    time_used = now - start_time
+    len_previous_questions = len(previous_questions)
+    minutes, seconds = divmod(time_used.total_seconds(), 60)
+    errors = len([dot for dot in dot_list if dot != 'green_dot'])
+    correct_answers = len_previous_questions - errors
+    if time_used > allowed_duration or not 'green_dot' in dot_list:
+        return render_template('result.html', success = False, time = {'minutes': int(minutes), 'seconds': int(seconds)}, correct_answers =correct_answers, q_list = len_previous_questions, mistakes = errors)  
+    elif correct_answers ==25:
+        return render_template('result.html', success = True, time = {'minutes': int(minutes), 'seconds': int(seconds)}, correct_answers =correct_answers, q_list = len_previous_questions, mistakes = errors)  
+
       
     question = questions[number]
     if request.method == "POST":
@@ -126,19 +130,19 @@ def quiz(number):
             dot_list[fisrt_occurrence] = 'red_dot'
             session['dot_list'] = dot_list
             print('you answer is written', question.id) 
-        
+
         return redirect(url_for('next_question'))
 
-    return render_template('index.html', question=question, number = number, data_json=json.dumps(data), dot_list = dot_list)
+    return render_template('index.html', question=question, number = number, data_json=json.dumps(data), dot_list = dot_list, q_list =len( previous_questions))
 @app.route('/next_question')
 def next_question():
     result = db.session.execute(db.select(Question))
     questions = result.scalars().all()
     current_question_index = session.get('current_question_index', 0)
     previous_questions = session.get('previous_questions', [])
-    print(len(previous_questions))  
+    len_previous_questions = len(previous_questions) 
  
-    if len(previous_questions) <= 0 or current_question_index +1 == len(previous_questions):
+    if len_previous_questions <= 0 or current_question_index +1 == len_previous_questions:
         number = get_random(all = len(questions) - 1, last = previous_questions)
         previous_questions.append(number)
         if current_question_index != 0:
