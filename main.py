@@ -42,31 +42,41 @@ class Question(db.Model):
     answer_2 = db.Column(String(), nullable=False)
     answer_3 = db.Column(String(), nullable=False)
     answer_4 = db.Column(String(), nullable=False)
-    correct = db.Column(String())
+    correct = db.Column(String(), nullable=False)
     image = db.Column(String())
 
 #uploads data to sql
+@app.route('/add', methods=['GET', 'POST'])
 def upload_data():  
+    # with app.app_context():
+    db.create_all()
+    with open("Questions\QC.json", 'r', encoding='utf-8') as file:
+        database = json.load(file)
+    
+
+    for key, value in database.items():
+        new_question = Question(
+            id= key,
+            question=value["question"],
+            answer_1=value["answers"][0],
+            answer_2=value["answers"][1],
+            answer_3=value["answers"][2],
+            answer_4=value["answers"][3],
+            correct=value["correct"],
+            image=value['image']
+        )
+        db.session.add(new_question)
+    db.session.commit()
+    return 'data successfuly added'
+
+def find_id_by_answer():
     with app.app_context():
         db.create_all()
-        with open("Questions\QC.json", 'r', encoding='utf-8') as file:
-            database = json.load(file)
-        
-
-        for key, value in database.items():
-            new_question = Question(
-                question=value["question"],
-                answer_1=value["answers"][0],
-                answer_2=value["answers"][1],
-                answer_3=value["answers"][2],
-                answer_4=value["answers"][3],
-                correct=value["correct"],
-                image=value['image']
-            )
-            db.session.add(new_question)
-            db.session.commit()
-
-
+        form = QuestionForm()
+        search_question = request.form.get('search_question')
+        result  = db.session.execute(db.select(Question).where(Question.answer_1== search_question)).scalar()
+   
+            
 def get_random(all, last= []):
     number = r.randint(0, all)
     while number in last:
@@ -94,9 +104,15 @@ def start():
 def quiz(number):  
     result = db.session.execute(db.select(Question))
     questions = result.scalars().all()
+    #previous_questions contains questions' index number in the list 
     previous_questions = session.get('previous_questions', [])
     update_website_time = session.get('update_website_time', False)
+    answered_questions = session.get('answered_questions', 0)
     dot_list = session.get('dot_list', ["green_dot" for x in range(5)])
+    current_question_index = session.get('current_question_index', 0)
+    print(previous_questions)
+    print(number)
+    #website timer
     if update_website_time:
         data= {"update": True}
         session['update_website_time'] = False
@@ -104,15 +120,17 @@ def quiz(number):
         data= {"update": False}
     
      
-    #timer settings 
+    #inner timer settings 
     allowed_duration = timedelta(minutes=ALLOWED_TIME)
     start_time = session.get('start_time', None)  
     now = datetime.now(pytz.UTC)
     time_used = now - start_time
+    #checking for remaining time and correct answers 
     len_previous_questions = len(previous_questions)
     minutes, seconds = divmod(time_used.total_seconds(), 60)
+    
     errors = len([dot for dot in dot_list if dot != 'green_dot'])
-    correct_answers = len_previous_questions - errors
+    correct_answers = answered_questions - errors
     if time_used > allowed_duration or not 'green_dot' in dot_list:
         return render_template('result.html', success = False, time = {'minutes': int(minutes), 'seconds': int(seconds)}, correct_answers =correct_answers, q_list = len_previous_questions, mistakes = errors)  
     elif correct_answers ==25:
@@ -130,10 +148,11 @@ def quiz(number):
             dot_list[fisrt_occurrence] = 'red_dot'
             session['dot_list'] = dot_list
             print('you answer is written', question.id) 
-
+        answered_questions+=1
+        session['answered_questions'] = answered_questions
         return redirect(url_for('next_question'))
-
-    return render_template('index.html', question=question, number = number, data_json=json.dumps(data), dot_list = dot_list, q_list =len( previous_questions))
+ 
+    return render_template('index.html', question=question, number = number, data_json=json.dumps(data), dot_list = dot_list, q_list =current_question_index)
 @app.route('/next_question')
 def next_question():
     result = db.session.execute(db.select(Question))
@@ -143,6 +162,8 @@ def next_question():
     len_previous_questions = len(previous_questions) 
  
     if len_previous_questions <= 0 or current_question_index +1 == len_previous_questions:
+        if len_previous_questions == 30:
+            return redirect(url_for('quiz', number = previous_questions[-1]))
         number = get_random(all = len(questions) - 1, last = previous_questions)
         previous_questions.append(number)
         if current_question_index != 0:
@@ -171,12 +192,6 @@ def previous_question(number):
     session['current_question_index'] = current_question_index
     session['previous_questions'] = previous_questions
     return redirect(url_for('quiz', number= number))
-
-@app.route('/update-time')
-def update_time():
-    time = {'change_time': True}
-    return jsonify(time)
-
 
 @app.route('/edit/<int:question_id>', methods =['GET', "POST"])
 def edit_question(question_id):

@@ -39,10 +39,10 @@
         <ul>
         <li><h1>You have spent: {{time.minutes}} min {{time.seconds}} sec</h1></li>
         <li><h1>You have correctly answered for {{correct_answers}} out of {{q_list}}</h1></li>
-        {%if miskates!= 0%}
-        <li><h1>You have made {{mistakes}} mistakes</h1></li>
-        {%else%}
+        {%if miskates== 0%}
         <li><h1>You didn't make any mistake</h1></li>
+        {%else%}
+        <li><h1>You have made {{mistakes}} mistakes</h1></li>
         {%endif%}
     </ul>
     </div>
