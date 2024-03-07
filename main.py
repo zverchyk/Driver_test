@@ -8,7 +8,7 @@ from flask_bootstrap import Bootstrap5
 import json
 from form import QuestionForm, StartForm
 import random as r
-import threading
+import os
 from time import sleep
 
 #offset-aware datetime
@@ -16,7 +16,7 @@ import pytz
 from datetime import datetime, timedelta
 
 #allowed time in minutes
-ALLOWED_TIME =  1
+ALLOWED_TIME =  25
 # Function to decrement the timer value and update it
 
 app = Flask(__name__)
@@ -44,6 +44,13 @@ class Question(db.Model):
     answer_4 = db.Column(String(), nullable=False)
     correct = db.Column(String(), nullable=False)
     image = db.Column(String())
+
+ 
+
+
+def file_exist(file_path):
+    return os.path.exists(file_path)
+
 
 #uploads data to sql
 @app.route('/add', methods=['GET', 'POST'])
@@ -77,11 +84,23 @@ def find_id_by_answer():
         result  = db.session.execute(db.select(Question).where(Question.answer_1== search_question)).scalar()
    
             
-def get_random(all, last= []):
-    number = r.randint(0, all)
-    while number in last:
-        number = r.randint(0, all)
-    return number
+def get_unique_values(lst, num_unique_values):
+    # Ensure that num_unique_values is not greater than the length of the original list
+    num_unique_values = min(num_unique_values, len(lst))
+    
+    # Use a set to store unique values
+    unique_values = set()
+    
+    # Loop until we have enough unique values
+    while len(unique_values) < num_unique_values:
+        # Randomly select an element from the original list
+        random_value = r.choice(lst)
+        
+        # Add it to the set of unique values
+        unique_values.add(random_value)
+    
+    # Convert the set back to a list and return it
+    return list(unique_values)
 
 @app.route('/', methods=["GET", "POST"])
 def start():
@@ -89,29 +108,36 @@ def start():
     form = StartForm()
     print(form.validate_on_submit())  
     if request.method == "POST":
-        # session.clear()
-            # Start the timer thread
-        # timer_thread = threading.Thread(target=countdown, args= (result_queue))
-        # timer_thread.start()
+
         session['start_time'] = datetime.now(pytz.UTC)
         session['update_website_time'] = True
-        
+        result = db.session.execute(db.select(Question))
+        questions = len(result.scalars().all())
+        print(type(questions))
+        questions_unique_indexes = get_unique_values(range(questions), 30)
+        session['questions_unique_indexes'] = questions_unique_indexes 
         
         return redirect(url_for('next_question'))
     return render_template('start.html', form= form)
     
-@app.route('/quiz/<int:number>', methods = ['GET', "POST"])
-def quiz(number):  
+@app.route('/quiz', methods = ['GET', "POST"])
+def quiz():  
     result = db.session.execute(db.select(Question))
     questions = result.scalars().all()
-    #previous_questions contains questions' index number in the list 
-    previous_questions = session.get('previous_questions', [])
+    #current index, index list, question number
+    current_question_index = session.get('current_question_index', 0)
+    questions_unique_indexes = session.get('questions_unique_indexes', [])
+    
+    number = questions_unique_indexes[current_question_index]
+    #website time
     update_website_time = session.get('update_website_time', False)
-    answered_questions = session.get('answered_questions', 0)
+    answered_questions = session.get('answered_questions', [])
+    #error dots
     dot_list = session.get('dot_list', ["green_dot" for x in range(5)])
     current_question_index = session.get('current_question_index', 0)
-    print(previous_questions)
-    print(number)
+
+    
+
     #website timer
     if update_website_time:
         data= {"update": True}
@@ -126,15 +152,16 @@ def quiz(number):
     now = datetime.now(pytz.UTC)
     time_used = now - start_time
     #checking for remaining time and correct answers 
-    len_previous_questions = len(previous_questions)
+    len_questions_unique_indexes = len(questions_unique_indexes)
     minutes, seconds = divmod(time_used.total_seconds(), 60)
     
     errors = len([dot for dot in dot_list if dot != 'green_dot'])
-    correct_answers = answered_questions - errors
+    correct_answers = len(answered_questions) - errors
+ 
     if time_used > allowed_duration or not 'green_dot' in dot_list:
-        return render_template('result.html', success = False, time = {'minutes': int(minutes), 'seconds': int(seconds)}, correct_answers =correct_answers, q_list = len_previous_questions, mistakes = errors)  
+        return render_template('result.html', success = False, time = {'minutes': int(minutes), 'seconds': int(seconds)}, correct_answers =correct_answers, q_list = len(answered_questions), mistakes = errors)  
     elif correct_answers ==25:
-        return render_template('result.html', success = True, time = {'minutes': int(minutes), 'seconds': int(seconds)}, correct_answers =correct_answers, q_list = len_previous_questions, mistakes = errors)  
+        return render_template('result.html', success = True, time = {'minutes': int(minutes), 'seconds': int(seconds)}, correct_answers =correct_answers, q_list = len(answered_questions), mistakes = errors)  
 
       
     question = questions[number]
@@ -146,52 +173,30 @@ def quiz(number):
             #search for first occurrence of value 'green_dot' and changes it to 'red_dot'
             fisrt_occurrence = dot_list.index('green_dot')
             dot_list[fisrt_occurrence] = 'red_dot'
-            session['dot_list'] = dot_list
+            session['dot_list'] = dot_list 
             print('you answer is written', question.id) 
-        answered_questions+=1
+        answered_questions.append(current_question_index)
         session['answered_questions'] = answered_questions
         return redirect(url_for('next_question'))
- 
-    return render_template('index.html', question=question, number = number, data_json=json.dumps(data), dot_list = dot_list, q_list =current_question_index)
+    image_path = f"static/img/" + str(question.id) + ".png"
+    is_answered = current_question_index in answered_questions
+    
+    return render_template('index.html', question=question, number = number, data_json=json.dumps(data), dot_list = dot_list, q_list =current_question_index+1, file_exist= file_exist(image_path), image_path = image_path, is_answered = is_answered, getattr = getattr) 
+
 @app.route('/next_question')
 def next_question():
-    result = db.session.execute(db.select(Question))
-    questions = result.scalars().all()
-    current_question_index = session.get('current_question_index', 0)
-    previous_questions = session.get('previous_questions', [])
-    len_previous_questions = len(previous_questions) 
- 
-    if len_previous_questions <= 0 or current_question_index +1 == len_previous_questions:
-        if len_previous_questions == 30:
-            return redirect(url_for('quiz', number = previous_questions[-1]))
-        number = get_random(all = len(questions) - 1, last = previous_questions)
-        previous_questions.append(number)
-        if current_question_index != 0:
-            current_question_index+=1 
-    else:
-        number = previous_questions[current_question_index+1]
-        current_question_index+=1
-    session['current_question_index'] = current_question_index
-    session['previous_questions'] = previous_questions
-    print('start: ', previous_questions)
-    print('start index: ', current_question_index)
-    return redirect(url_for('quiz', number = number))
-
+    current_question_index = session.get('current_question_index', -1)
+    if current_question_index <29:
+        current_question_index += 1
+        session['current_question_index'] = current_question_index
+    return redirect(url_for('quiz'))
 @app.route('/previous_question/<int:number>')
 def previous_question(number):  
     current_question_index = session.get('current_question_index', 0)
-    previous_questions = session.get('previous_questions', [])
-    if current_question_index >0 and len(previous_questions) >1:
-        current_question_index -=1
-        number = previous_questions[current_question_index] 
-    else: 
-        number = number
-    print('previous: ', previous_questions)
-    print('previous index: ', current_question_index)
-    
-    session['current_question_index'] = current_question_index
-    session['previous_questions'] = previous_questions
-    return redirect(url_for('quiz', number= number))
+    if current_question_index !=0:
+        current_question_index -= 1
+        session['current_question_index'] = current_question_index
+    return redirect(url_for('quiz'))
 
 @app.route('/edit/<int:question_id>', methods =['GET', "POST"])
 def edit_question(question_id):
@@ -205,8 +210,7 @@ def edit_question(question_id):
             correct = question.correct,
             image = question.image
     )
-    if request.method == "POST":
-        print(edit_q.validate_on_submit())
+
     if edit_q.validate_on_submit() and request.method == "POST":
         question.question = edit_q.question.data
         question.answer_1 = edit_q.answer_1.data
@@ -222,27 +226,6 @@ def edit_question(question_id):
     return render_template('edit.html', form=edit_q, id = question_id)
 
         
-
-def delete_duplicates():
-    with app.app_context():
-        db.create_all()
-        keep_rows = db.session.query(
-            Question.id,
-            db.func.row_number().over(
-                partition_by=(Question.question, Question.answer_2),
-                order_by=Question.id
-            ).label('row_number')
-        ).subquery('keep_rows')
-
-        # Delete rows that are not in the keep_rows subquery
-        delete_query = Question.__table__.delete().where(
-            Question.id.notin_(
-                db.session.query(keep_rows.c.id)
-            )
-        )
-
-        db.session.execute(delete_query)
-        db.session.commit()
 
 
 if __name__ == "__main__":
