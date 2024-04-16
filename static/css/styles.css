@@ -69,19 +69,9 @@ body{
 .options input[type="radio"]:checked ~ .checkmark:after{
     transform: translate(-50%,-50%) scale(1);
 }
-.btn-primary{
-    background-color: #555;
-    color: #ddd;
-    border: 1px solid #ddd;
-}
-.btn-primary:hover{
-    background-color: #21bf73;
-    border: 1px solid #21bf73;
-}
-.btn-success{
-    padding: 5px 25px;
-    background-color: #21bf73;
-}
+
+
+
 .green_dot {
     height: 25px;
     width: 25px;
@@ -109,4 +99,42 @@ body{
         width: 100%;
         word-spacing: 2px;
     } 
+}
+
+.buttons {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.buttons button,
+.buttons a {
+    margin-bottom: 10px;
+    width: calc(50% - 5px); /* Adjust button width and spacing as needed */
+}
+
+.buttons button {
+    order: 1; /* Position the submit button to the right */
+}
+
+@media screen and (min-width: 768px) {
+    /* Adjustments for larger screens */
+    .buttons button,
+    .buttons a {
+        width: auto; /* Revert to auto width for larger screens */
+        margin-bottom: 0;
+    }
+
+    #prev {
+        order: 2; /* Position the previous button to the left */
+    }
+
+    .ml-auto {
+        order: 3; /* Position the next button to the left */
+    }
+
+    .mr-sm-5 {
+        margin-right: 0; /* Remove right margin for edit button on larger screens */
+    }
 }

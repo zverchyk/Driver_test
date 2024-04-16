@@ -1,5 +1,6 @@
 from flask import Flask, abort, render_template, redirect,jsonify, url_for, flash, request, session
 from flask_sqlalchemy import SQLAlchemy
+from flask_login import UserMixin, login_user, LoginManager, current_user, logout_user, login_required
 from sqlalchemy.orm import relationship, DeclarativeBase, Mapped, mapped_column
 from sqlalchemy import Integer, String, Text, distinct
 from sqlalchemy.ext.declarative import declarative_base
@@ -10,6 +11,7 @@ from form import QuestionForm, StartForm
 import random as r
 import os
 from time import sleep
+from functools import wraps
 
 #offset-aware datetime
 import pytz
@@ -23,7 +25,9 @@ app = Flask(__name__)
 #config paths
 app.config['SECRET_KEY'] = '8BYkEfBA6O6donzWlSihBXox7C0sKR6b'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///questions.db'
-
+app.config["SQLALCHEMY_BINDS"] = {
+    'users': "sqlite:///users.db"
+    }
 Bootstrap5(app)
 
 class Base(DeclarativeBase):
@@ -31,7 +35,30 @@ class Base(DeclarativeBase):
 db = SQLAlchemy(model_class=Base)
 db.init_app(app)
 
+class User(UserMixin, db.Model):
+    __tablename__ = "users"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    password: Mapped[str] = mapped_column(String(100))
+    name: Mapped[str] = mapped_column(String(100))
+    
+login_manager = LoginManager(app)
+login_manager.init_app(app)
 
+@login_manager.user_loader        
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
+#admin decorator 
+def admin_only(function):
+    @wraps(function) 
+    def wrapper(*args, **kwargs):
+        if not current_user.is_authenticated or current_user.name != "admin":
+            print(current_user) 
+            print(current_user.is_authenticated)  
+            return abort(403)
+        else:
+            return function(*args, **kwargs)
+    return wrapper
 
 class Question(db.Model):
     __tablename__ = 'questions'
@@ -47,17 +74,21 @@ class Question(db.Model):
 
  
 
-
+with app.app_context():
+    db.create_all()
+    
+# checking for pictures    
 def file_exist(file_path):
     return os.path.exists(file_path)
 
 
 #uploads data to sql
 @app.route('/add', methods=['GET', 'POST'])
+
 def upload_data():  
     # with app.app_context():
     db.create_all()
-    with open("Questions\QC.json", 'r', encoding='utf-8') as file:
+    with open("Questions\RQC.json", 'r', encoding='utf-8') as file:
         database = json.load(file)
     
 
@@ -69,13 +100,24 @@ def upload_data():
             answer_2=value["answers"][1],
             answer_3=value["answers"][2],
             answer_4=value["answers"][3],
-            correct=value["correct"],
-            image=value['image']
+            correct=value["correct"]
         )
         db.session.add(new_question)
     db.session.commit()
     return 'data successfuly added'
 
+
+@app.route('/login/<string:name>/<string:password>')
+def login(name, password):
+    user_name = db.session.execute(db.select(User).where(User.name == name)).scalar()
+    user_password = db.session.execute(db.select(User).where(User.password == password)).scalar()
+    if user_name and user_password:
+        login_user(user_name)
+    else:
+        return abort(400)
+    return redirect(url_for('quiz'))   
+    
+    
 def find_id_by_answer():
     with app.app_context():
         db.create_all()
@@ -104,9 +146,16 @@ def get_unique_values(lst, num_unique_values):
 
 @app.route('/', methods=["GET", "POST"])
 def start():
+    
     session.clear()
     form = StartForm()
     print(form.validate_on_submit())  
+    # admin = User(
+    #     name= 'admin',
+    #     password = '353535'
+    # )
+    # db.session.add(admin)
+    # db.session.commit()
     if request.method == "POST":
 
         session['start_time'] = datetime.now(pytz.UTC)
@@ -167,21 +216,19 @@ def quiz():
     question = questions[number]
     if request.method == "POST":
         selected_answer = str(request.form.get('answer'))
-        if selected_answer == question.correct:
-            print('it is correct answer', question.id)
-        else:
+        if selected_answer != question.correct:
             #search for first occurrence of value 'green_dot' and changes it to 'red_dot'
             fisrt_occurrence = dot_list.index('green_dot')
             dot_list[fisrt_occurrence] = 'red_dot'
             session['dot_list'] = dot_list 
-            print('you answer is written', question.id) 
+            
         answered_questions.append(current_question_index)
         session['answered_questions'] = answered_questions
         return redirect(url_for('next_question'))
     image_path = f"static/img/" + str(question.id) + ".png"
     is_answered = current_question_index in answered_questions
     
-    return render_template('index.html', question=question, number = number, data_json=json.dumps(data), dot_list = dot_list, q_list =current_question_index+1, file_exist= file_exist(image_path), image_path = image_path, is_answered = is_answered, getattr = getattr) 
+    return render_template('index.html', question=question, number = number, data_json=json.dumps(data), dot_list = dot_list, q_list =current_question_index+1, file_exist= file_exist(image_path), image_path = image_path, is_answered = is_answered, getattr = getattr, is_admin= current_user) 
 
 @app.route('/next_question')
 def next_question():
@@ -199,6 +246,7 @@ def previous_question(number):
     return redirect(url_for('quiz'))
 
 @app.route('/edit/<int:question_id>', methods =['GET', "POST"])
+@admin_only
 def edit_question(question_id):
     question = db.get_or_404(Question, question_id)
     edit_q = QuestionForm(
