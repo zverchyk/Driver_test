@@ -88,7 +88,7 @@ def file_exist(file_path):
 def upload_data():  
     # with app.app_context():
     db.create_all()
-    with open("Questions\RQC.json", 'r', encoding='utf-8') as file:
+    with open(r"Questions/RQC.json", 'r', encoding='utf-8') as file:
         database = json.load(file)
     
 
@@ -150,12 +150,12 @@ def start():
     session.clear()
     form = StartForm()
     print(form.validate_on_submit())  
-    # admin = User(
-    #     name= 'admin',
-    #     password = '353535'
-    # )
-    # db.session.add(admin)
-    # db.session.commit()
+    admin = User(
+        name= 'admin',
+        password = '353535'
+    )
+    db.session.add(admin)
+    db.session.commit()
     if request.method == "POST":
 
         session['start_time'] = datetime.now(pytz.UTC)
@@ -237,6 +237,8 @@ def next_question():
         current_question_index += 1
         session['current_question_index'] = current_question_index
     return redirect(url_for('quiz'))
+
+
 @app.route('/previous_question/<int:number>')
 def previous_question(number):  
     current_question_index = session.get('current_question_index', 0)
@@ -246,7 +248,7 @@ def previous_question(number):
     return redirect(url_for('quiz'))
 
 @app.route('/edit/<int:question_id>', methods =['GET', "POST"])
-@admin_only
+# @admin_only
 def edit_question(question_id):
     question = db.get_or_404(Question, question_id)
     edit_q = QuestionForm(
